@@ -1,0 +1,6 @@
+module OspCore {
+    header "../../../core/osp_core/osp_core.h"
+    link "osp_core"
+    export *
+}
+

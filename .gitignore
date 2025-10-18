@@ -1,0 +1,47 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.db
+*.db-shm
+*.db-wal
+
+# Test artifacts
+/blobs/
+/tmp/
+
+# Logs
+*.log
+
+# macOS app build artifacts
+gui/macos/Haste/Haste
+gui/macos/Haste/lib/
+gui/macos/Haste/*.dylib
+gui/macos/Haste.app/
+
+# Release artifacts
+/release/
+GITHUB_RELEASE.md
+RELEASE_CHECKLIST.md
+release.sh
+
+/memory-bank/*
+AGENTS.md
+
