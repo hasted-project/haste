@@ -34,7 +34,7 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
     
     enum FilterType {
         case all
-        case links
+        case pinned
     }
     
     init(core: CoreBridge) {
@@ -167,28 +167,34 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
         topBar.layer?.backgroundColor = NSColor(calibratedWhite: 0.1, alpha: 0.95).cgColor
         contentView.addSubview(topBar)
         
-        // Search icon
-        let searchIcon = NSImageView(image: NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Search")!)
-        searchIcon.translatesAutoresizingMaskIntoConstraints = false
-        searchIcon.contentTintColor = .white
-        topBar.addSubview(searchIcon)
+        // Search icon button with background
+        let searchIconBtn = NSButton(frame: .zero)
+        searchIconBtn.translatesAutoresizingMaskIntoConstraints = false
+        searchIconBtn.wantsLayer = true
+        searchIconBtn.layer?.backgroundColor = NSColor(calibratedRed: 0.2, green: 0.4, blue: 0.8, alpha: 0.3).cgColor
+        searchIconBtn.layer?.cornerRadius = 8
+        searchIconBtn.isBordered = false
+        searchIconBtn.bezelStyle = .regularSquare
+        searchIconBtn.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Search")!
+        searchIconBtn.contentTintColor = NSColor(calibratedRed: 0.4, green: 0.7, blue: 1.0, alpha: 1.0)
+        searchIconBtn.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
+        searchIconBtn.target = self
+        searchIconBtn.action = #selector(focusSearchField(_:))
+        topBar.addSubview(searchIconBtn)
         
-        // Clipboard button
-        let clipboardBtn = createFilterButton(title: "Clipboard", isActive: true)
-        topBar.addSubview(clipboardBtn)
-        filterButtons.append(clipboardBtn)
+        // All button
+        let allBtn = createFilterButton(title: "All", isActive: true)
+        allBtn.target = self
+        allBtn.action = #selector(filterAll(_:))
+        topBar.addSubview(allBtn)
+        filterButtons.append(allBtn)
         
-        // Useful Links button with dot indicator
-        let linksBtn = createFilterButton(title: "Useful Links", isActive: false)
-        topBar.addSubview(linksBtn)
-        filterButtons.append(linksBtn)
-        
-        let redDot = NSView(frame: .zero)
-        redDot.translatesAutoresizingMaskIntoConstraints = false
-        redDot.wantsLayer = true
-        redDot.layer?.backgroundColor = NSColor.red.cgColor
-        redDot.layer?.cornerRadius = 4
-        topBar.addSubview(redDot)
+        // Pinned button
+        let pinnedBtn = createFilterButton(title: "Pinned", isActive: false)
+        pinnedBtn.target = self
+        pinnedBtn.action = #selector(filterPinned(_:))
+        topBar.addSubview(pinnedBtn)
+        filterButtons.append(pinnedBtn)
         
         // Menu button
         let menuBtn = NSButton(frame: .zero)
@@ -249,34 +255,24 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
             topBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             topBar.heightAnchor.constraint(equalToConstant: 60),
             
-            // Search icon
-            searchIcon.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 30),
-            searchIcon.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            searchIcon.widthAnchor.constraint(equalToConstant: 20),
-            searchIcon.heightAnchor.constraint(equalToConstant: 20),
+            // Search icon button
+            searchIconBtn.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 20),
+            searchIconBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            searchIconBtn.widthAnchor.constraint(equalToConstant: 40),
+            searchIconBtn.heightAnchor.constraint(equalToConstant: 40),
             
-            // Search field
-            searchField.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 10),
-            searchField.widthAnchor.constraint(equalToConstant: 200),
-            searchField.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            allBtn.leadingAnchor.constraint(equalTo: searchIconBtn.trailingAnchor, constant: 20),
+            allBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             
-            // Clipboard button
-            clipboardBtn.leadingAnchor.constraint(equalTo: searchField.trailingAnchor, constant: 40),
-            clipboardBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            pinnedBtn.leadingAnchor.constraint(equalTo: allBtn.trailingAnchor, constant: 20),
+            pinnedBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             
-            // Links button
-            linksBtn.leadingAnchor.constraint(equalTo: clipboardBtn.trailingAnchor, constant: 20),
-            linksBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
-            
-            // Red dot
-            redDot.leadingAnchor.constraint(equalTo: linksBtn.leadingAnchor, constant: -12),
-            redDot.topAnchor.constraint(equalTo: linksBtn.topAnchor, constant: 2),
-            redDot.widthAnchor.constraint(equalToConstant: 8),
-            redDot.heightAnchor.constraint(equalToConstant: 8),
-            
-            // Menu button
-            menuBtn.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -30),
+            menuBtn.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -20),
             menuBtn.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
+            
+            searchField.leadingAnchor.constraint(equalTo: pinnedBtn.trailingAnchor, constant: 30),
+            searchField.trailingAnchor.constraint(equalTo: menuBtn.leadingAnchor, constant: -20),
+            searchField.centerYAnchor.constraint(equalTo: topBar.centerYAnchor),
             
             // Scroll view
             scrollView.topAnchor.constraint(equalTo: topBar.bottomAnchor),
@@ -363,10 +359,35 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "Haste"
-        alert.informativeText = "A fast, native clipboard manager for macOS.\n\nVersion 1.0\n\nPress Cmd+Shift+V to open\nArrow keys to navigate\nEnter to copy\nEscape to close"
+        alert.informativeText = "A fast, native clipboard manager for macOS.\n\nVersion 1.0\n\nPress Cmd+Shift+V to open\nArrow keys to navigate\nEnter to copy\nRight-click to pin/unpin\nEscape to close"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+    
+    @objc private func filterAll(_ sender: NSButton) {
+        currentFilter = .all
+        updateFilterButtons()
+        performSearch(searchField.stringValue)
+    }
+    
+    @objc private func filterPinned(_ sender: NSButton) {
+        currentFilter = .pinned
+        updateFilterButtons()
+        performSearch(searchField.stringValue)
+    }
+    
+    private func updateFilterButtons() {
+        for (index, button) in filterButtons.enumerated() {
+            let isActive = (index == 0 && currentFilter == .all) || (index == 1 && currentFilter == .pinned)
+            button.font = NSFont.systemFont(ofSize: 13, weight: isActive ? .semibold : .regular)
+            button.contentTintColor = isActive ? .white : NSColor.gray
+        }
+    }
+    
+    @objc private func focusSearchField(_ sender: NSButton) {
+        window.makeFirstResponder(searchField)
+        searchField.becomeFirstResponder()
     }
     
     // MARK: - Search
@@ -377,12 +398,18 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
             allItems = core.search(query: "", limit: 500) // Get more items for fuzzy filtering
         }
         
+        // Apply filter based on current filter type
+        var filteredItems = allItems
+        if currentFilter == .pinned {
+            filteredItems = allItems.filter { $0.pinned }
+        }
+        
         if query.isEmpty {
-            // Show all recent items
-            items = Array(allItems.prefix(100))
+            // Show filtered items
+            items = Array(filteredItems.prefix(100))
         } else {
             // Fuzzy filter on the client side
-            items = fuzzyFilter(items: allItems, query: query)
+            items = fuzzyFilter(items: filteredItems, query: query)
         }
         
         collectionView.reloadData()
@@ -469,7 +496,17 @@ class SearchWindow: NSObject, NSWindowDelegate, NSCollectionViewDataSource, NSCo
         let item = collectionView.makeItem(withIdentifier: NSUserInterfaceItemIdentifier("ClipboardCard"), for: indexPath) as! ClipboardCardItem
         let dataItem = items[indexPath.item]
         item.configure(with: dataItem, index: indexPath.item)
+        item.onPin = { [weak self] itemId, shouldPin in
+            self?.togglePin(itemId: itemId, shouldPin: shouldPin)
+        }
         return item
+    }
+    
+    private func togglePin(itemId: Int64, shouldPin: Bool) {
+        _ = core.pinItem(id: itemId, pinned: shouldPin)
+        // Refresh items to reflect the change
+        allItems.removeAll()
+        performSearch(searchField.stringValue)
     }
     
     // MARK: - NSCollectionViewDelegate
@@ -639,6 +676,8 @@ class ClipboardCardItem: NSCollectionViewItem {
     private var charCountLabel: NSTextField!
     private var indexLabel: NSTextField!
     private var cardView: NSView!
+    private var pinIndicator: NSImageView!
+    var onPin: ((Int64, Bool) -> Void)?
     
     override func loadView() {
         view = NSView()
@@ -706,6 +745,18 @@ class ClipboardCardItem: NSCollectionViewItem {
         indexLabel.alignment = .right
         cardView.addSubview(indexLabel)
         
+        // Pin indicator (star icon)
+        pinIndicator = NSImageView(image: NSImage(systemSymbolName: "star.fill", accessibilityDescription: "Pinned")!)
+        pinIndicator.translatesAutoresizingMaskIntoConstraints = false
+        pinIndicator.contentTintColor = NSColor.systemYellow
+        pinIndicator.isHidden = true
+        cardView.addSubview(pinIndicator)
+        
+        // Add right-click gesture recognizer
+        let rightClick = NSClickGestureRecognizer(target: self, action: #selector(handleRightClick(_:)))
+        rightClick.buttonMask = 0x2 // Right mouse button
+        view.addGestureRecognizer(rightClick)
+        
         // Layout
         NSLayoutConstraint.activate([
             cardView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -737,8 +788,30 @@ class ClipboardCardItem: NSCollectionViewItem {
             charCountLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 16),
             
             indexLabel.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -16),
-            indexLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16)
+            indexLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -16),
+            
+            pinIndicator.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 16),
+            pinIndicator.leadingAnchor.constraint(equalTo: typeLabel.trailingAnchor, constant: 8),
+            pinIndicator.widthAnchor.constraint(equalToConstant: 14),
+            pinIndicator.heightAnchor.constraint(equalToConstant: 14)
         ])
+    }
+    
+    @objc private func handleRightClick(_ sender: NSClickGestureRecognizer) {
+        guard let item = representedObject as? CoreBridge.Item else { return }
+        
+        let menu = NSMenu()
+        let pinTitle = item.pinned ? "Unpin" : "Pin"
+        let pinItem = NSMenuItem(title: pinTitle, action: #selector(togglePinAction), keyEquivalent: "")
+        pinItem.target = self
+        menu.addItem(pinItem)
+        
+        NSMenu.popUpContextMenu(menu, with: NSApp.currentEvent!, for: view)
+    }
+    
+    @objc private func togglePinAction() {
+        guard let item = representedObject as? CoreBridge.Item else { return }
+        onPin?(item.id, !item.pinned)
     }
     
     func configure(with item: CoreBridge.Item, index: Int) {
@@ -794,6 +867,9 @@ class ClipboardCardItem: NSCollectionViewItem {
         
         // Index
         indexLabel.stringValue = "\(index + 1)"
+        
+        // Pin indicator
+        pinIndicator.isHidden = !item.pinned
         
         // Colors based on type
         updateColors(for: item.kind, content: displayContent, isSelected: isSelected)
