@@ -745,8 +745,18 @@ class ClipboardCardItem: NSCollectionViewItem {
         // Store item for selection tracking
         self.representedObject = item
         
-        // Type
-        let typeName = typeNameForKind(item.kind)
+        // Determine display content first (needed for type detection)
+        var displayContent = item.contentRef
+        if item.kind == .rtf {
+            // Convert RTF to plain text for display
+            if let rtfData = item.contentRef.data(using: .utf8),
+               let attributedString = NSAttributedString(rtf: rtfData, documentAttributes: nil) {
+                displayContent = attributedString.string
+            }
+        }
+        
+        // Type (now with correct content for link detection)
+        let typeName = typeNameForKind(item.kind, content: displayContent)
         typeLabel.stringValue = typeName
         
         // Time
@@ -754,7 +764,7 @@ class ClipboardCardItem: NSCollectionViewItem {
         timeLabel.stringValue = formatRelativeTime(date)
         
         // Icon
-        iconView.image = imageForKind(item.kind)
+        iconView.image = imageForKind(item.kind, content: displayContent)
         
         // Content - show image preview for images, text for others
         if item.kind == .image {
@@ -775,29 +785,27 @@ class ClipboardCardItem: NSCollectionViewItem {
                 charCountLabel.stringValue = imageURL.lastPathComponent
             }
         } else {
-            // Show text content
-            contentLabel.stringValue = item.contentRef
+            // Show text content (use displayContent for RTF)
+            contentLabel.stringValue = displayContent
             contentLabel.isHidden = false
             imagePreview.isHidden = true
-            charCountLabel.stringValue = "\(item.contentRef.count) characters"
+            charCountLabel.stringValue = "\(displayContent.count) characters"
         }
         
         // Index
         indexLabel.stringValue = "\(index + 1)"
         
         // Colors based on type
-        updateColors(for: item.kind, isSelected: isSelected)
+        updateColors(for: item.kind, content: displayContent, isSelected: isSelected)
     }
     
     override var isSelected: Bool {
         didSet {
             if let item = representedObject as? CoreBridge.Item {
-                updateColors(for: item.kind, isSelected: isSelected)
+                updateColors(for: item.kind, content: contentLabel.stringValue, isSelected: isSelected)
             } else {
                 // Fallback: update colors based on content if no represented object
-                let isLink = contentLabel.stringValue.hasPrefix("http") || contentLabel.stringValue.hasPrefix("www")
-                let kind: CoreBridge.Item.ItemKind = isLink ? .text : .text
-                updateColors(for: kind, isSelected: isSelected)
+                updateColors(for: .text, content: contentLabel.stringValue, isSelected: isSelected)
             }
         }
     }
@@ -805,11 +813,11 @@ class ClipboardCardItem: NSCollectionViewItem {
     func updateSelection(_ selected: Bool) {
         self.isSelected = selected
         if let item = representedObject as? CoreBridge.Item {
-            updateColors(for: item.kind, isSelected: selected)
+            updateColors(for: item.kind, content: contentLabel.stringValue, isSelected: selected)
         }
     }
     
-    private func updateColors(for kind: CoreBridge.Item.ItemKind, isSelected: Bool) {
+    private func updateColors(for kind: CoreBridge.Item.ItemKind, content: String, isSelected: Bool) {
         if isSelected {
             // Blue for selected
             cardView.layer?.backgroundColor = NSColor(calibratedRed: 0.2, green: 0.4, blue: 0.8, alpha: 1.0).cgColor
@@ -819,7 +827,7 @@ class ClipboardCardItem: NSCollectionViewItem {
             // Different colors for different types
             switch kind {
             case .text:
-                if contentLabel.stringValue.hasPrefix("http") || contentLabel.stringValue.hasPrefix("www") {
+                if isLink(content) {
                     // Cyan for links
                     cardView.layer?.backgroundColor = NSColor(calibratedRed: 0.2, green: 0.7, blue: 0.8, alpha: 1.0).cgColor
                 } else {
@@ -840,10 +848,14 @@ class ClipboardCardItem: NSCollectionViewItem {
         }
     }
     
-    private func typeNameForKind(_ kind: CoreBridge.Item.ItemKind) -> String {
+    private func isLink(_ content: String) -> Bool {
+        return content.hasPrefix("http://") || content.hasPrefix("https://") || content.hasPrefix("www.")
+    }
+    
+    private func typeNameForKind(_ kind: CoreBridge.Item.ItemKind, content: String) -> String {
         switch kind {
         case .text:
-            if contentLabel.stringValue.hasPrefix("http") || contentLabel.stringValue.hasPrefix("www") {
+            if isLink(content) {
                 return "Link"
             }
             return "Text"
@@ -853,10 +865,15 @@ class ClipboardCardItem: NSCollectionViewItem {
         }
     }
     
-    private func imageForKind(_ kind: CoreBridge.Item.ItemKind) -> NSImage? {
+    private func imageForKind(_ kind: CoreBridge.Item.ItemKind, content: String) -> NSImage? {
         let symbolName: String
         switch kind {
-        case .text: symbolName = "doc.text"
+        case .text:
+            if isLink(content) {
+                symbolName = "link"
+            } else {
+                symbolName = "doc.text"
+            }
         case .rtf: symbolName = "doc.richtext"
         case .image: symbolName = "photo"
         case .file: symbolName = "folder"
