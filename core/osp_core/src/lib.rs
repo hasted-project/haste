@@ -1,6 +1,6 @@
 //! Core library for Haste clipboard manager.
 //!
-//! Copyright (C) 2024 Haste Project Contributors
+//! Copyright (C) 2025 Haste Project Contributors
 //!
 //! This program is free software: you can redistribute it and/or modify
 //! it under the terms of the GNU General Public License as published by
