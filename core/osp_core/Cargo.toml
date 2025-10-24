@@ -1,6 +1,6 @@
 [package]
 name = "osp_core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Haste Project Contributors"]
 license = "GPL-3.0"

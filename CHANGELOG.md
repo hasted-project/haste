@@ -5,6 +5,27 @@ All notable changes to Haste will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-01-25
+
+### Added
+- **Pin Favorites** - Right-click any item to pin/unpin it for quick access
+- **Pinned Filter** - New "Pinned" button to view only your favorite items
+- **Visual Pin Indicator** - Yellow star icon shows which items are pinned
+- **Clickable Search Icon** - Click the search icon to focus the search field
+- **Enhanced Search Icon** - More visible search button with blue background
+- **Link Detection** - URLs are now properly detected and labeled as "Link"
+- **Improved RTF Display** - Rich text content now shows as readable text instead of raw markup
+
+### Fixed
+- Fixed type detection for copied URLs (now shows "Link" instead of "Text")
+- Fixed RTF items displaying raw markup instead of formatted text
+- Fixed search field focus behavior
+
+### Changed
+- Updated copyright year to 2025
+- Simplified README for better user experience
+- Prioritized DMG installation over building from source
+
 ## [0.1.0] - 2025-10-18
 
 ### Added

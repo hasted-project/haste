@@ -60,7 +60,7 @@ bundle: swift
 	@printf '  <key>CFBundleIdentifier</key>\n  <string>com.haste.clipboard</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
 	@printf '  <key>CFBundleName</key>\n  <string>Haste</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
 	@printf '  <key>CFBundlePackageType</key>\n  <string>APPL</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
-	@printf '  <key>CFBundleShortVersionString</key>\n  <string>1.0</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
+	@printf '  <key>CFBundleShortVersionString</key>\n  <string>0.2.0</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
 	@printf '  <key>LSMinimumSystemVersion</key>\n  <string>13.0</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist
 	@printf '  <key>LSUIElement</key>\n  <true/>\n' >> $(APP_BUNDLE)/Contents/Info.plist
 	@printf '  <key>NSPrincipalClass</key>\n  <string>NSApplication</string>\n' >> $(APP_BUNDLE)/Contents/Info.plist

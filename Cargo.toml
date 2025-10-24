@@ -4,5 +4,6 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-license = "MIT"
+license = "GPL-3.0"
+version = "0.2.0"
 
