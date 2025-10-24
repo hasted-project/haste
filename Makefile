@@ -27,7 +27,7 @@ build: rust swift bundle
 # Build Rust core library
 rust:
 	@echo "$(BLUE)📦 Building Rust core library...$(NC)"
-	@cargo build --release -p osp_core --quiet
+	@$(HOME)/.cargo/bin/cargo build --release -p osp_core --quiet
 
 # Compile Swift application
 swift: rust
@@ -107,7 +107,7 @@ clean:
 	@rm -rf $(APP_BUNDLE)
 	@rm -f $(SWIFT_BIN)
 	@rm -rf gui/macos/Haste/lib
-	@cargo clean
+	@$(HOME)/.cargo/bin/cargo clean
 	@echo "$(GREEN)✅ Clean complete$(NC)"
 
 # Development: watch and rebuild on file changes (requires fswatch)
