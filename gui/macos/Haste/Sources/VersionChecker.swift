@@ -26,15 +26,7 @@ class VersionChecker {
     
     /// Current app version (from Info.plist)
     private let currentVersion: String
-    
-    /// GitHub repository owner/name (e.g., "username/haste")
     private let githubRepo: String
-    
-    /// UserDefaults key for last check date
-    private let lastCheckKey = "LastUpdateCheckDate"
-    
-    /// Minimum time between checks (24 hours)
-    private let checkInterval: TimeInterval = 24 * 60 * 60
     
     init(githubRepo: String) {
         self.githubRepo = githubRepo
@@ -47,22 +39,10 @@ class VersionChecker {
         }
     }
     
-    /// Check for updates (respects check interval)
+    /// Check for updates (always checks on every call)
     func checkForUpdates(force: Bool = false) {
-        // Check if we should skip (unless forced)
-        if !force {
-            if let lastCheck = UserDefaults.standard.object(forKey: lastCheckKey) as? Date {
-                let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
-                if timeSinceLastCheck < checkInterval {
-                    return // Skip check, too soon
-                }
-            }
-        }
-        
-        // Update last check date
-        UserDefaults.standard.set(Date(), forKey: lastCheckKey)
-        
-        // Perform check asynchronously
+        print("🔍 [Update Check] Starting check")
+        // Always perform the check
         DispatchQueue.global(qos: .background).async { [weak self] in
             self?.performUpdateCheck()
         }
@@ -149,30 +129,115 @@ class VersionChecker {
         return false // Versions are equal
     }
     
+    /// Format markdown text for display in alert
+    private func formatReleaseNotes(_ notes: String?) -> String {
+        guard let notes = notes, !notes.isEmpty else {
+            return "No release notes available."
+        }
+        
+        // Clean up markdown formatting
+        var formatted = notes
+            .replacingOccurrences(of: "### ", with: "• ")
+            .replacingOccurrences(of: "## ", with: "")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            
+        
+        return formatted.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
     /// Show alert to user about available update
     private func showUpdateAlert(currentVersion: String, latestVersion: String, downloadURL: String?, releaseNotes: String?) {
         let alert = NSAlert()
-        alert.messageText = "Update Available"
-        alert.informativeText = """
-        A new version of Haste is available!
+        alert.messageText = "✨ Haste v\(latestVersion) is Available!"
         
-        Current version: \(currentVersion)
-        Latest version: \(latestVersion)
+        // Create a custom view for better formatting
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 450, height: 280))
+        view.wantsLayer = true
         
-        \(releaseNotes?.prefix(200) ?? "")
-        """
+        
+        // Title label
+        let title = NSTextField(labelWithString: "A new version of Haste is ready to install!")
+        title.font = NSFont.boldSystemFont(ofSize: 13)
+        title.frame = NSRect(x: 0, y: 250, width: 430, height: 20)
+        view.addSubview(title)
+        
+        // Version info
+        let versionText = "You're currently on v\(currentVersion). Update to v\(latestVersion) for the latest features and improvements."
+        let versionLabel = NSTextField(wrappingLabelWithString: versionText)
+        versionLabel.frame = NSRect(x: 0, y: 210, width: 430, height: 40)
+        versionLabel.font = NSFont.systemFont(ofSize: 12)
+        versionLabel.textColor = .secondaryLabelColor
+        view.addSubview(versionLabel)
+        
+        // Release notes container with border
+        let container = NSView(frame: NSRect(x: 0, y: 50, width: 430, height: 160))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 4
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor.separatorColor.cgColor
+        
+        // Scroll view for release notes
+        let scrollView = NSScrollView(frame: NSRect(x: 5, y: 5, width: 420, height: 150))
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.drawsBackground = false
+        scrollView.verticalScrollElasticity = .automatic
+
+        
+        // Text view for release notes
+        let notesLabel = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 0))
+        notesLabel.string = formatReleaseNotes(releaseNotes)
+        notesLabel.font = NSFont.systemFont(ofSize: 12)
+        notesLabel.textContainerInset = NSSize(width: 8, height: 8)
+        notesLabel.isEditable = false
+        notesLabel.isSelectable = true
+        notesLabel.isAutomaticLinkDetectionEnabled = true
+        notesLabel.drawsBackground = true
+        notesLabel.backgroundColor = .clear
+        notesLabel.wantsLayer = true
+
+        guard let layoutManager = notesLabel.layoutManager,
+              let textContainer = notesLabel.textContainer else {
+            fatalError("NSTextView setup failed") 
+        }
+
+        // 2. Force them to lay out the text
+        layoutManager.ensureLayout(for: textContainer)
+
+        // 3. Get the *actual* height of the laid-out text
+        let textHeight = layoutManager.usedRect(for: textContainer).height
+        let verticalInsets = notesLabel.textContainerInset.height * 2
+        let totalHeight = textHeight + verticalInsets
+
+        // 6. Set the frame, using your new minimum height logic
+        // This sets the width you want, and a height of *at least* 150.
+        notesLabel.frame = NSRect(x: 0, y: 0, width: 400, height: max(150, totalHeight))
+        
+        // Setup scroll view
+        scrollView.contentView.wantsLayer = true
+        scrollView.documentView = notesLabel
+        container.addSubview(scrollView)
+        view.addSubview(container)
+        
+        // Divider
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.frame = NSRect(x: 0, y: 40, width: 430, height: 1)
+        view.addSubview(divider)
+        
+        // Configure alert
+        alert.accessoryView = view
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Download")
+        alert.addButton(withTitle: "Download Update").keyEquivalent = "\r"
         alert.addButton(withTitle: "Later")
         
+        // Show alert and handle response
         let response = alert.runModal()
         
-        if response == .alertFirstButtonReturn {
-            // User clicked "Download"
-            if let urlString = downloadURL,
-               let url = URL(string: urlString) {
-                NSWorkspace.shared.open(url)
-            }
+        if response == .alertFirstButtonReturn, let urlString = downloadURL, let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+            NSApp.terminate(nil)
         }
     }
 }
